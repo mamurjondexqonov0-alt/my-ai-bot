@@ -7,12 +7,14 @@ from flask import Flask, request
 import telebot
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
+# Bot tokeni va Render webhook manzili
 TOKEN = "8961394155:AAEyso--Kr7_OiSomtz7FXDBTwdafx1miQo"
 WEBHOOK_URL = f"https://my-ai-bot-5x8z.onrender.com/{TOKEN}"
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
+# Webhook sozlash
 try:
     bot.remove_webhook()
     bot.set_webhook(url=WEBHOOK_URL)
@@ -20,6 +22,7 @@ try:
 except Exception as e:
     print(f"Webhook o'rnatishda xato: {e}")
 
+# Ma'lumotlar bazasini o'qish
 def load_db():
     try:
         with open('database.json', 'r', encoding='utf-8') as f:
@@ -27,12 +30,25 @@ def load_db():
     except Exception:
         return {}
 
+# Bazaga saqlash
 def save_to_db(key, value):
     db = load_db()
     db[key.lower().strip()] = value.strip()
     with open('database.json', 'w', encoding='utf-8') as f:
         json.dump(db, f, ensure_ascii=False, indent=4)
 
+# Bazadan o'chirish
+def delete_from_db(key):
+    db = load_db()
+    key_low = key.lower().strip()
+    if key_low in db:
+        del db[key_low]
+        with open('database.json', 'w', encoding='utf-8') as f:
+            json.dump(db, f, ensure_ascii=False, indent=4)
+        return True
+    return False
+
+# Matndan ommaviy ma'lumot olish
 def parse_and_save_bulk(text_content):
     lines = text_content.split('\n')
     saved_count = 0
@@ -53,12 +69,14 @@ def parse_and_save_bulk(text_content):
                 continue
     return saved_count
 
+# Asosiy menyu tugmalari
 def main_menu_keyboard():
     markup = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     markup.add(
         KeyboardButton("📅 Dars jadvali"),
         KeyboardButton("📚 Tibbiy fanlar"),
         KeyboardButton("🧠 Bilimni sinash (Test)"),
+        KeyboardButton("⚙️ Admin / Baza sozlamalari"),
         KeyboardButton("📞 Aloqa / Yordam")
     )
     return markup
@@ -68,8 +86,8 @@ def send_welcome(message):
     chat_id = message.chat.id
     bot.send_message(
         chat_id,
-        f"Salom, {message.from_user.first_name}! 🩺 **Davolash ishi yordamchisi** botiga xush kelibsiz!\n\n"
-        f"Menga bir nechta mavzuni bog'lab savol bersangiz, bazadan topib birlashtirib beraman. Shuningdek, **«🧠 Bilimni sinash (Test)»** tugmasi orqali o'zim sizga savollar beraman!",
+        f"Salom, {message.from_user.first_name}! 🩺 **Davolash ishi (DI-2026-25) yordamchisi** botiga xush kelibsiz!\n\n"
+        f"Baza noldan tozalanib, yangi tartibga keltirildi. Istalgan mavzuni o'rgating yoki savol yuboring!",
         parse_mode="Markdown",
         reply_markup=main_menu_keyboard()
     )
@@ -105,21 +123,17 @@ def handle_docs(message):
             if count > 0:
                 bot.send_message(
                     chat_id,
-                    f"📂 **Fayldan ma'lumotlar muvaffaqiyatli ajratib olindi!**\n\n✅ Jami **{count} ta** mavzu bazaga yodlatildi.",
+                    f"📂 **Fayldan ma'lumotlar o'qildi!**\n\n✅ Jami **{count} ta** mavzu bazaga yodlatildi.",
                     parse_mode="Markdown"
                 )
             else:
                 key = file_name.rsplit('.', 1)[0]
                 save_to_db(key, extracted_text.strip())
-                bot.send_message(
-                    chat_id,
-                    f"📂 **Fayl butunicha saqlandi!**\n\n📌 *Mavzu:* {key}",
-                    parse_mode="Markdown"
-                )
+                bot.send_message(chat_id, f"📂 **Fayl saqlandi!**\n\n📌 *Mavzu:* {key}", parse_mode="Markdown")
         else:
-            bot.send_message(chat_id, "⚠️ Fayl ichidan matn topilmadi yoki u bo'sh.")
+            bot.send_message(chat_id, "⚠️ Fayl bo'sh.")
     except Exception as e:
-        bot.send_message(chat_id, f"❌ Xatolik yuz berdi: {str(e)}")
+        bot.send_message(chat_id, f"❌ Xatolik: {str(e)}")
 
 @bot.message_handler(func=lambda message: True)
 def handle_text_logic(message):
@@ -137,60 +151,66 @@ def handle_text_logic(message):
         bot.send_message(chat_id, "👨‍⚕️ Savollar bo'yicha guruh sardoriga yoki adminstratorga murojaat qiling.")
         return
     
-    # 🧠 O'zi bazadan savol tuzib berishi (Viktorina)
+    # Admin menyusi
+    elif text == "⚙️ Admin / Baza sozlamalari":
+        db = load_db()
+        admin_text = (
+            f"⚙️ **Baza boshqaruvi**\n\n"
+            f"📊 Mavzular soni: **{len(db)} ta**\n\n"
+            f"• Qo'shish: `O'rgan: Mavzu - Ma'lumot`\n"
+            f"• O'chirish: `O'chir: Mavzu`\n"
+            f"• Ro'yxat: `Ro'yxat`"
+        )
+        bot.send_message(chat_id, admin_text, parse_mode="Markdown")
+        return
+
+    elif low_text == "ro'yxat" or low_text == "royxat":
+        db = load_db()
+        if not db:
+            bot.send_message(chat_id, "📭 Bazada ma'lumot yo'q.")
+            return
+        keys_str = ", ".join([k.capitalize() for k in db.keys()])
+        bot.send_message(chat_id, f"📚 **Mavzular:**\n\n{keys_str}", parse_mode="Markdown")
+        return
+
+    if low_text.startswith("o'chir:") or low_text.startswith("oʻchir:") or low_text.startswith("ochir:"):
+        try:
+            key_to_del = text.split(":", 1)[1].strip()
+            if delete_from_db(key_to_del):
+                bot.send_message(chat_id, f"🗑 **{key_to_del.capitalize()}** o'chirildi!", parse_mode="Markdown")
+            else:
+                bot.send_message(chat_id, f"⚠️ Topilmadi.", parse_mode="Markdown")
+        except Exception:
+            bot.send_message(chat_id, "⚠️ Xato format! Masalan: `O'chir: Yurak`", parse_mode="Markdown")
+        return
+
     elif text == "🧠 Bilimni sinash (Test)":
         db = load_db()
         if not db:
-            bot.send_message(chat_id, "⚠️ Hozircha bazada hech qanday ma'lumot yo'q. Avval menga ma'lumotlar o'rgating!")
+            bot.send_message(chat_id, "⚠️ Bazada ma'lumot yo'q. Avval o'rgating!")
             return
-        
-        # Tasodifiy bitta mavzuni tanlaymiz
         random_key, random_val = random.choice(list(db.items()))
-        question_text = (
-            f"🧠 **Bilimingizni tekshiramiz!**\n\n"
-            f"❓ **Mavzu / Tushuncha:** *{random_key.capitalize()}*\n\n"
-            f"💡 *Savol:* Bu tushunchaning ma'nosi bazamizda qanday saqlangan? "
-            f"Keling, o'zingiz eslab ko'ring yoki tekshirish uchun quyidagi tugmani bosing:"
-        )
-        bot.send_message(chat_id, question_text, parse_mode="Markdown")
-        # Javobini ham birga eslatib o'tamiz yoki o'rganish uchun ko'rsatamiz
-        bot.send_message(chat_id, f"📖 **To'g'ri javob:**\n{random_val}", parse_mode="Markdown")
+        bot.send_message(chat_id, f"🧠 **Test:**\n\n❓ *Mavzu:* {random_key.capitalize()}\n\n💡 *Javob:* {random_val}", parse_mode="Markdown")
         return
 
-    # O'rganish mantiqi
     if "o'rgan:" in low_text or "oʻrgan:" in low_text or "organ:" in low_text:
         count = parse_and_save_bulk(text)
         if count > 0:
-            bot.send_message(
-                chat_id,
-                f"🧠 **Ajoyib! Jami {count} ta mavzu bazaga yodlatildi.**",
-                parse_mode="Markdown"
-            )
+            bot.send_message(chat_id, f"🧠 Ajoyib! Jami **{count} ta** mavzu yodlatildi.", parse_mode="Markdown")
             return
 
-    # 🔗 Bog'lab qidirish (Ko'p so'zli tahlil)
+    # Qidirish mantiqi
     db = load_db()
     found_items = []
-
     for keyword, answer in db.items():
         if keyword in low_text:
             found_items.append(f"📌 **{keyword.capitalize()}**:\n{answer}")
 
     if found_items:
-        # Topilgan barcha bog'liq ma'lumotlarni birlashtirib chiqaramiz
-        combined_response = "🔗 **Siz so'ragan mavzular bo'yicha bazadagi bog'lanishlar:**\n\n" + "\n\n---\n\n".join(found_items)
-        if len(combined_response) > 3500:
-            combined_response = combined_response[:3500] + "\n\n...(davomi bor)..."
-        bot.send_message(chat_id, combined_response, parse_mode="Markdown")
+        response = "\n\n---\n\n".join(found_items)
+        bot.send_message(chat_id, response, parse_mode="Markdown")
     else:
-        bot.send_message(
-            chat_id,
-            "🤖 Men bu haqida hali hech narsa bilmayman.\n\n"
-            "Menga o'rgatish uchun quyidagicha yozing:\n"
-            "`O'rgan: mavzu - ma'lumot`",
-            parse_mode="Markdown",
-            reply_markup=main_menu_keyboard()
-        )
+        bot.send_message(chat_id, "🤖 Bu haqida ma'lumot yo'q.\n\nO'rgatish uchun:\n`O'rgan: mavzu - ma'lumot`", parse_mode="Markdown", reply_markup=main_menu_keyboard())
 
 @app.route('/' + TOKEN, methods=['POST'])
 def getMessage():
@@ -201,7 +221,7 @@ def getMessage():
 
 @app.route("/")
 def webhook():
-    return "Bot status: Active & Self-Learning Ready!", 200
+    return "Clean Bot status: Active!", 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
