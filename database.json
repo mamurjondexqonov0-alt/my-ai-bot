@@ -1,8 +1,13 @@
 {
-  "yurak": "🫀 **Yurak anatomiyasi va funksiyasi:**\nYurak — qon aylanish sistemasining markaziy organi bo'lib, 4 ta kameradan (2 ta bo'lmacha va 2 ta qorincha) iborat. O'ng tomoni toza bo'lmagan vena qonini o'pkalarga haydaydi, chap tomoni esa kislorodga boy arterial qonni butun tana a'zolariga tarqatadi. Devorlari endokard, miokard (kuchli yurak mushagi) va perikard qatlamlaridan tashkil topgan.",
-  "miya": "🧠 **Bosh miya:**\nMarkaziy nerv sistemasining asosiy boshqaruv organi. U bosh miya yarim sharlari, miyacha (harakatlar muvozanati), ko'prik va uzunchoq miyadan iborat bo'lib, butun tana faoliyatini, sezgi va tafakkurni boshqaradi.",
-  "o'pka": "🫁 **O'pka anatomiyasi:**\nNafas olish tizimining asosiy a'zosi bo'lib ko'krak qafasida joylashgan. O'ng o'pka 3 ta, chap o'pka esa yurak joylashuvi sababli 2 ta bo'lakdan iborat. U yerda kislorod va karbonat angidrid gazi almashinuvi sodir bo'ladi.",
-  "dublyaj": "🎬 **Dublyaj va Ovoz berish qoidalari:**\n1. **Stakirovka:** Matn og'iz harakatiga (lip-sync) aniq tushishi kerak.\n2. **Aktyorlik mahorati:** Qahramonning hissiyotini (g'azab, quvonch, qo'rquv) ovoz orqali 100% yetkazib berish.\n3. **Diktsiya va artikulyatsiya:** So'zlarni aniq, lo'nda va tushunarli talaffuz qilish.",
+  "yurak": "🫀 **Yurak anatomiyasi va funksiyasi:**\nYurak — qon aylanish sistemasining markaziy organi bo'lib, 4 ta kameradan (2 ta bo'lmacha va 2 ta qorincha) iborat. O'ng tomoni toza bo'lmagan vena qonini o'pkalarga haydaydi, chap tomoni esa kislorodga boy arterial qonni butun tana a'zolariga tarqatadi.",
+  "miya": "🧠 **Bosh miya:**\nMarkaziy nerv sistemasining asosiy boshqaruv organi. U bosh miya yarim sharlari, miyacha (harakatlar muvozanati), ko'prik va uzunchoq miyadan iborat.",
+  "o'pka": "🫁 **O'pka anatomiyasi:**\nNafas olish tizimining asosiy a'zosi. O'ng o'pka 3 ta, chap o'pka esa yurak joylashuvi sababli 2 ta bo'lakdan iborat.",
+  "jigar": "🩺 **Jigar anatomiyasi:**\nInson tanasidagi eng yirik bez bo'lib, qonni toksinlardan tozalash, safro ishlab chiqarish va moddalar almashinuvida qatnashish vazifasini bajaradi.",
+  "buyrak": "💧 **Buyraklar:**\nQonni filtrlash, siydik hosil qilish va organizmdagi suv-tuz balansini saqlashga mas'ul bo'lgan loviyasimon juft a'zo.",
+  "dublyaj": "🎬 **Dublyaj va Ovoz berish qoidalari:**\n1. **Stakirovka:** Matn og'iz harakatiga (lip-sync) aniq tushishi kerak.\n2. **Aktyorlik mahorati:** Qahramonning hissiyotini ovoz orqali 100% yetkazib berish.",
   "diktsiya": "🎙 **Diktsiya va Nutq mashqlari:**\n• Lab va til gimnastikalari (har kuni 5-10 daqiqa);\n• Jag'ni ochib tezaytishlar aytish;\n• Diafragma (qorin) orqali to'g'ri nafas olishni mashq qilish.",
-  "tarjima": "📝 **Tarjima va Subtitr yaratish:**\nFilm yoki anime tarjima qilinganda so'zma-so'z emas, balki o'zbek tilining madaniy xususiyatlariga va ma'nosiga moslashtirib (lokalizatsiya qilib) tarjima qilish muhim hisoblanadi."
+  "tarjima": "📝 **Tarjima va Subtitr:**\nFilm yoki anime tarjima qilinganda so'zma-so'z emas, balki o'zbek tilining ma'nosiga moslashtirib (lokalizatsiya qilib) tarjima qilish muhim.",
+  "python": "🐍 **Python dasturlash tili:**\nSoddaligi va o'qishga osonligi bilan ajralib turadigan yuqori darajadagi dasturlash tili. Telegram botlar, sun'iy intellekt va avtomatlashtirishda keng qo'llaniladi.",
+  "unity": "🎮 **Unity motori:**\n2D va 3D o'yinlar yaratish uchun mo'ljallangan kuchli o'yin engine'i. C# dasturlash tilidan foydalaniladi.",
+  "telegram": "🤖 **Telegram Botlar:**\nTelegram platformasida avtomatik xabarlar almashish, buyruqlarni bajarish va foydalanuvchilar bilan muloqot qilish uchun mo'ljallangan dasturiy interfeys."
 }
