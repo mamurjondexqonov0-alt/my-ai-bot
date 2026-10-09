@@ -9,7 +9,6 @@ TOKEN = "7953931637:AAFI0y0dIrt-eXFv0lI-j4Hl_3s_3s"
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# Bazani o'qish
 def load_db():
     try:
         with open('database.json', 'r', encoding='utf-8') as f:
@@ -17,7 +16,6 @@ def load_db():
     except Exception:
         return {}
 
-# Bazaga yangi bilim saqlash (O'zi o'rganish funksiyasi)
 def save_to_db(key, value):
     db = load_db()
     db[key.lower().strip()] = value.strip()
@@ -38,9 +36,8 @@ def send_welcome(message):
     bot.send_message(
         message.chat.id,
         f"Salom, {message.from_user.first_name}! 🎙 **Doktor Dubber** botiga xush kelibsiz!\n\n"
-        f"Men o'z-o'zimni o'rgana oladigan botman! Menga yangi ma'lumot o'rgatish uchun:\n"
-        f"👉 `O'rgan: mavzu - ma'lumot` formatida yozing.\n\n"
-        f"Manga savol bering yoki ma'lumot o'rgating!",
+        f"Menga yangi tibbiy yoki boshqa ma'lumot o'rgatish uchun quyidagicha yozing:\n"
+        f"👉 `O'rgan: mavzu - ma'lumot`",
         parse_mode="Markdown",
         reply_markup=main_menu_keyboard()
     )
@@ -59,13 +56,12 @@ def handle_text_logic(message):
         bot.send_message(chat_id, "📝 Buyurtma va hamkorlik uchun: @doktor_dubber ga murojaat qiling.")
         return
     elif text == "📝 Ssenariy / Matn tuzish":
-        bot.send_message(chat_id, "🎙 Ssenariy yoki matn mavzusini yozib yuboring. Uni birgalikda muhokama qilamiz!")
+        bot.send_message(chat_id, "🎙 Ssenariy yoki matn mavzusini yozib yuboring. Birgalikda muhokama qilamiz!")
         return
 
-    # 1. BOTNING O'ZI O'RGANISH MANTIQI (O'rgan: mavzu - ma'lumot)
-    if low_text.startswith("o'rgan:") or low_text.startswith("oʻrgan:"):
+    # 1. O'rganish mantiqi (O'rgan: mavzu - ma'lumot)
+    if low_text.startswith("o'rgan:") or low_text.startswith("oʻrgan:") or low_text.startswith("organ:"):
         try:
-            # "O'rgan: " qismini olib tashlab, kalit va qiymatga ajratamiz
             content = text.split(":", 1)[1]
             if "-" in content:
                 parts = content.split("-", 1)
@@ -75,7 +71,7 @@ def handle_text_logic(message):
                 save_to_db(key, value)
                 bot.send_message(
                     chat_id, 
-                    f"🧠 **Rahmat! Men yangi bilim oldim va uni yodlab qoldim:**\n\n📌 *Mavzu:* {key}\n📖 *Ma'lumot:* {value}", 
+                    f"🧠 **Rahmat! Yangi bilim bazaga qo'shildi va yodlab qolindi:**\n\n📌 *Mavzu:* {key}\n📖 *Ma'lumot:* {value}", 
                     parse_mode="Markdown"
                 )
                 return
@@ -98,7 +94,7 @@ def handle_text_logic(message):
         bot.send_message(
             chat_id,
             "🤖 Men bu haqida hali hech narsa bilmayman.\n\n"
-            "Menga buni o'rgatish uchun quyidagicha yozing:\n"
+            "Menga o'rgatish uchun quyidagicha yozing:\n"
             "`O'rgan: " + text + " - [bu yerga ma'lumotni yozing]`",
             parse_mode="Markdown",
             reply_markup=main_menu_keyboard()
@@ -115,7 +111,7 @@ def getMessage():
 def webhook():
     bot.remove_webhook()
     bot.set_webhook(url='https://my-ai-bot-5x8z.onrender.com/' + TOKEN)
-    return "Bot status: Active & Self-Learning Enabled!", 200
+    return "Bot status: Active & Self-Learning Ready!", 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
