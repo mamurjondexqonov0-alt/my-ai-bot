@@ -1,6 +1,7 @@
 import os
 import json
 import io
+import random
 import pypdf
 from flask import Flask, request
 import telebot
@@ -33,10 +34,8 @@ def save_to_db(key, value):
         json.dump(db, f, ensure_ascii=False, indent=4)
 
 def parse_and_save_bulk(text_content):
-    """Matn ichidan bir nechta 'O'rgan: mavzu - ma'lumot' qismlarini topib, alohida-alohida saqlaydi"""
     lines = text_content.split('\n')
     saved_count = 0
-    
     for line in lines:
         line_clean = line.strip()
         low_line = line_clean.lower()
@@ -59,6 +58,7 @@ def main_menu_keyboard():
     markup.add(
         KeyboardButton("📅 Dars jadvali"),
         KeyboardButton("📚 Tibbiy fanlar"),
+        KeyboardButton("🧠 Bilimni sinash (Test)"),
         KeyboardButton("📞 Aloqa / Yordam")
     )
     return markup
@@ -69,8 +69,7 @@ def send_welcome(message):
     bot.send_message(
         chat_id,
         f"Salom, {message.from_user.first_name}! 🩺 **Davolash ishi yordamchisi** botiga xush kelibsiz!\n\n"
-        f"Men bir nechta ma'lumotni ketma-ket (har birini yangi qatordan `O'rgan: mavzu - ma'lumot` qilib) yuborsangiz, ularning **har birini alohida-alohida** ajratib bazaga yodlab olaman.\n\n"
-        f"Shuningdek, `.txt` fayl yuborishingiz ham mumkin.",
+        f"Menga bir nechta mavzuni bog'lab savol bersangiz, bazadan topib birlashtirib beraman. Shuningdek, **«🧠 Bilimni sinash (Test)»** tugmasi orqali o'zim sizga savollar beraman!",
         parse_mode="Markdown",
         reply_markup=main_menu_keyboard()
     )
@@ -102,27 +101,25 @@ def handle_docs(message):
             return
 
         if extracted_text.strip():
-            # Fayl ichidagi barcha O'rgan qismlarini alohida-alohida ajratib saqlaymiz
             count = parse_and_save_bulk(extracted_text)
             if count > 0:
                 bot.send_message(
                     chat_id,
-                    f"📂 **Fayldan ma'lumotlar muvaffaqiyatli ajratib olindi!**\n\n✅ Jami **{count} ta** mavzu alohida-alohida bazaga yodlatildi.",
+                    f"📂 **Fayldan ma'lumotlar muvaffaqiyatli ajratib olindi!**\n\n✅ Jami **{count} ta** mavzu bazaga yodlatildi.",
                     parse_mode="Markdown"
                 )
             else:
-                # Agar faylda O'rgan formati bo'lmasa, fayl nomini kalit qilib butun matnni saqlaymiz
                 key = file_name.rsplit('.', 1)[0]
                 save_to_db(key, extracted_text.strip())
                 bot.send_message(
                     chat_id,
-                    f"📂 **Fayl butunicha saqlandi!**\n\n📌 *Mavzu:* {key}\n📖 *Hajmi:* {len(extracted_text)} ta belgi",
+                    f"📂 **Fayl butunicha saqlandi!**\n\n📌 *Mavzu:* {key}",
                     parse_mode="Markdown"
                 )
         else:
             bot.send_message(chat_id, "⚠️ Fayl ichidan matn topilmadi yoki u bo'sh.")
     except Exception as e:
-        bot.send_message(chat_id, f"❌ Faylni o'qishda xatolik yuz berdi: {str(e)}")
+        bot.send_message(chat_id, f"❌ Xatolik yuz berdi: {str(e)}")
 
 @bot.message_handler(func=lambda message: True)
 def handle_text_logic(message):
@@ -139,32 +136,52 @@ def handle_text_logic(message):
     elif text == "📞 Aloqa / Yordam":
         bot.send_message(chat_id, "👨‍⚕️ Savollar bo'yicha guruh sardoriga yoki adminstratorga murojaat qiling.")
         return
+    
+    # 🧠 O'zi bazadan savol tuzib berishi (Viktorina)
+    elif text == "🧠 Bilimni sinash (Test)":
+        db = load_db()
+        if not db:
+            bot.send_message(chat_id, "⚠️ Hozircha bazada hech qanday ma'lumot yo'q. Avval menga ma'lumotlar o'rgating!")
+            return
+        
+        # Tasodifiy bitta mavzuni tanlaymiz
+        random_key, random_val = random.choice(list(db.items()))
+        question_text = (
+            f"🧠 **Bilimingizni tekshiramiz!**\n\n"
+            f"❓ **Mavzu / Tushuncha:** *{random_key.capitalize()}*\n\n"
+            f"💡 *Savol:* Bu tushunchaning ma'nosi bazamizda qanday saqlangan? "
+            f"Keling, o'zingiz eslab ko'ring yoki tekshirish uchun quyidagi tugmani bosing:"
+        )
+        bot.send_message(chat_id, question_text, parse_mode="Markdown")
+        # Javobini ham birga eslatib o'tamiz yoki o'rganish uchun ko'rsatamiz
+        bot.send_message(chat_id, f"📖 **To'g'ri javob:**\n{random_val}", parse_mode="Markdown")
+        return
 
-    # Agar xabarda bir nechta "O'rgan:" bo'lsa, hammasini bittalab ajratib olamiz
+    # O'rganish mantiqi
     if "o'rgan:" in low_text or "oʻrgan:" in low_text or "organ:" in low_text:
         count = parse_and_save_bulk(text)
         if count > 0:
             bot.send_message(
                 chat_id,
-                f"🧠 **Ajoyib! Jami {count} ta yangi mavzu alohida-alohida ajratilib, bazaga yodlatildi.**",
+                f"🧠 **Ajoyib! Jami {count} ta mavzu bazaga yodlatildi.**",
                 parse_mode="Markdown"
             )
             return
 
-    # Bazadan qidirish
+    # 🔗 Bog'lab qidirish (Ko'p so'zli tahlil)
     db = load_db()
-    found_answer = None
+    found_items = []
 
     for keyword, answer in db.items():
         if keyword in low_text:
-            found_answer = answer
-            break
+            found_items.append(f"📌 **{keyword.capitalize()}**:\n{answer}")
 
-    if found_answer:
-        if len(found_answer) > 3500:
-            bot.send_message(chat_id, found_answer[:3500] + "\n\n...(davomi bor)...", parse_mode="Markdown")
-        else:
-            bot.send_message(chat_id, found_answer, parse_mode="Markdown")
+    if found_items:
+        # Topilgan barcha bog'liq ma'lumotlarni birlashtirib chiqaramiz
+        combined_response = "🔗 **Siz so'ragan mavzular bo'yicha bazadagi bog'lanishlar:**\n\n" + "\n\n---\n\n".join(found_items)
+        if len(combined_response) > 3500:
+            combined_response = combined_response[:3500] + "\n\n...(davomi bor)..."
+        bot.send_message(chat_id, combined_response, parse_mode="Markdown")
     else:
         bot.send_message(
             chat_id,
