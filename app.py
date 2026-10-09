@@ -57,6 +57,7 @@ def send_welcome(message):
 def handle_docs(message):
     chat_id = message.chat.id
     try:
+        # Fayl haqida ma'lumot olamiz
         file_info = bot.get_file(message.document.file_id)
         downloaded_file = bot.download_file(file_info.file_path)
         
@@ -64,8 +65,14 @@ def handle_docs(message):
         extracted_text = ""
 
         if file_name.endswith('.txt'):
-            extracted_text = downloaded_file.decode('utf-8', errors='ignore')
+            # TXT faylni o'qish
+            try:
+                extracted_text = downloaded_file.decode('utf-8')
+            except UnicodeDecodeError:
+                extracted_text = downloaded_file.decode('cp1251', errors='ignore')
+                
         elif file_name.endswith('.pdf'):
+            # PDF faylni o'qish
             pdf_stream = io.BytesIO(downloaded_file)
             reader = pypdf.PdfReader(pdf_stream)
             for page in reader.pages:
@@ -81,13 +88,13 @@ def handle_docs(message):
             save_to_db(key, extracted_text.strip())
             bot.send_message(
                 chat_id,
-                f"📂 **Fayl muvaffaqiyatli o'qildi va bazaga yodlatildi!**\n\n📌 *Fayl nomi (Mavzu):* {key}\n📖 *Hajmi:* {len(extracted_text)} ta belgi",
+                f"📂 **Fayl muvaffaqiyatli o'qildi va bazaga yodlatildi!**\n\n📌 *Mavzu (Fayl nomi):* {key}\n📖 *Matn hajmi:* {len(extracted_text)} ta belgi",
                 parse_mode="Markdown"
             )
         else:
             bot.send_message(chat_id, "⚠️ Fayl ichidan matn topilmadi yoki u bo'sh.")
     except Exception as e:
-        bot.send_message(chat_id, f"❌ Faylni o'qishda xatolik yuz berdi: {e}")
+        bot.send_message(chat_id, f"❌ Faylni o'qishda xatolik yuz berdi: {str(e)}")
 
 @bot.message_handler(func=lambda message: True)
 def handle_text_logic(message):
