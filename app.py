@@ -1,5 +1,6 @@
 import os
 import json
+import io
 import pypdf
 from flask import Flask, request
 import telebot
@@ -42,8 +43,9 @@ def main_menu_keyboard():
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
+    chat_id = message.chat.id
     bot.send_message(
-        message.chat.id,
+        chat_id,
         f"Salom, {message.from_user.first_name}! 🩺 **Davolash ishi yordamchisi** botiga xush kelibsiz!\n\n"
         f"Men dars jadvalingizni ko'rsataman va istalgan matn yoki faylni (`.txt`, `.pdf`) yuborsangiz, o'rganib yodlab qolaman.\n\n"
         f"👉 O'rgatish uchun: `O'rgan: mavzu - ma'lumot` deb yozing yoki fayl yuboring.",
@@ -51,7 +53,6 @@ def send_welcome(message):
         reply_markup=main_menu_keyboard()
     )
 
-# Fayllarni қабул қилиб ўқиш (TXT va PDF)
 @bot.message_handler(content_types=['document'])
 def handle_docs(message):
     chat_id = message.chat.id
@@ -65,7 +66,6 @@ def handle_docs(message):
         if file_name.endswith('.txt'):
             extracted_text = downloaded_file.decode('utf-8', errors='ignore')
         elif file_name.endswith('.pdf'):
-            import io
             pdf_stream = io.BytesIO(downloaded_file)
             reader = pypdf.PdfReader(pdf_stream)
             for page in reader.pages:
@@ -77,7 +77,6 @@ def handle_docs(message):
             return
 
         if extracted_text.strip():
-            # Fayl nomini kalit so'z sifatida olamiz, ichidagi matnni ma'lumot qilib saqlaymiz
             key = file_name.rsplit('.', 1)[0]
             save_to_db(key, extracted_text.strip())
             bot.send_message(
@@ -92,11 +91,10 @@ def handle_docs(message):
 
 @bot.message_handler(func=lambda message: True)
 def handle_text_logic(message):
-    text = message.text
     chat_id = message.chat.id
+    text = message.text
     low_text = text.lower()
 
-    # Menyu tugmalari
     if text == "📅 Dars jadvali":
         bot.send_message(chat_id, "🩺 **Davolash ishi (DI-2026-25) guruh jadvali:**\n\n• Gistologiya\n• Tibbiy kimyo\n• Odam anatomiyasi", parse_mode="Markdown")
         return
@@ -107,7 +105,6 @@ def handle_text_logic(message):
         bot.send_message(chat_id, "👨‍⚕️ Savollar bo'yicha guruh sardoriga yoki adminstratorga murojaat qiling.")
         return
 
-    # O'rganish mantiqi (O'rgan: mavzu - ma'lumot)
     if low_text.startswith("o'rgan:") or low_text.startswith("oʻrgan:") or low_text.startswith("organ:"):
         try:
             content = text.split(":", 1)[1]
@@ -127,7 +124,6 @@ def handle_text_logic(message):
             bot.send_message(chat_id, "⚠️ Xatolik! O'rgatish formati: `O'rgan: mavzu - ma'lumot`", parse_mode="Markdown")
             return
 
-    # Bazadan qidirish
     db = load_db()
     found_answer = None
 
@@ -137,7 +133,6 @@ def handle_text_logic(message):
             break
 
     if found_answer:
-        # Agar javob juda uzun bo'lsa (fayldan olingan bo'lsa), qisqartirib yoki to'liq yuboramiz
         if len(found_answer) > 3500:
             bot.send_message(chat_id, found_answer[:3500] + "\n\n...(davomi bor)...", parse_mode="Markdown")
         else:
