@@ -1,5 +1,6 @@
 import os
 import json
+import pypdf
 from flask import Flask, request
 import telebot
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
@@ -33,9 +34,9 @@ def save_to_db(key, value):
 def main_menu_keyboard():
     markup = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     markup.add(
-        KeyboardButton("🎬 Dublyaj loyihalari"),
-        KeyboardButton("📝 Ssenariy / Matn tuzish"),
-        KeyboardButton("📞 Aloqa / Buyurtma")
+        KeyboardButton("📅 Dars jadvali"),
+        KeyboardButton("📚 Tibbiy fanlar"),
+        KeyboardButton("📞 Aloqa / Yordam")
     )
     return markup
 
@@ -43,12 +44,51 @@ def main_menu_keyboard():
 def send_welcome(message):
     bot.send_message(
         message.chat.id,
-        f"Salom, {message.from_user.first_name}! 🎙 **Doktor Dubber** botiga xush kelibsiz!\n\n"
-        f"Menga yangi tibbiy yoki boshqa ma'lumot o'rgatish uchun quyidagicha yozing:\n"
-        f"👉 `O'rgan: mavzu - ma'lumot`",
+        f"Salom, {message.from_user.first_name}! 🩺 **Davolash ishi yordamchisi** botiga xush kelibsiz!\n\n"
+        f"Men dars jadvalingizni ko'rsataman va istalgan matn yoki faylni (`.txt`, `.pdf`) yuborsangiz, o'rganib yodlab qolaman.\n\n"
+        f"👉 O'rgatish uchun: `O'rgan: mavzu - ma'lumot` deb yozing yoki fayl yuboring.",
         parse_mode="Markdown",
         reply_markup=main_menu_keyboard()
     )
+
+# Fayllarni қабул қилиб ўқиш (TXT va PDF)
+@bot.message_handler(content_types=['document'])
+def handle_docs(message):
+    chat_id = message.chat.id
+    try:
+        file_info = bot.get_file(message.document.file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        
+        file_name = message.document.file_name.lower()
+        extracted_text = ""
+
+        if file_name.endswith('.txt'):
+            extracted_text = downloaded_file.decode('utf-8', errors='ignore')
+        elif file_name.endswith('.pdf'):
+            import io
+            pdf_stream = io.BytesIO(downloaded_file)
+            reader = pypdf.PdfReader(pdf_stream)
+            for page in reader.pages:
+                text = page.extract_text()
+                if text:
+                    extracted_text += text + "\n"
+        else:
+            bot.send_message(chat_id, "⚠️ Faqat `.txt` va `.pdf` formatidagi fayllarni o'qiy olaman!")
+            return
+
+        if extracted_text.strip():
+            # Fayl nomini kalit so'z sifatida olamiz, ichidagi matnni ma'lumot qilib saqlaymiz
+            key = file_name.rsplit('.', 1)[0]
+            save_to_db(key, extracted_text.strip())
+            bot.send_message(
+                chat_id,
+                f"📂 **Fayl muvaffaqiyatli o'qildi va bazaga yodlatildi!**\n\n📌 *Fayl nomi (Mavzu):* {key}\n📖 *Hajmi:* {len(extracted_text)} ta belgi",
+                parse_mode="Markdown"
+            )
+        else:
+            bot.send_message(chat_id, "⚠️ Fayl ichidan matn topilmadi yoki u bo'sh.")
+    except Exception as e:
+        bot.send_message(chat_id, f"❌ Faylni o'qishda xatolik yuz berdi: {e}")
 
 @bot.message_handler(func=lambda message: True)
 def handle_text_logic(message):
@@ -56,16 +96,18 @@ def handle_text_logic(message):
     chat_id = message.chat.id
     low_text = text.lower()
 
-    if text == "🎬 Dublyaj loyihalari":
-        bot.send_message(chat_id, "📂 **Doktor Dubber Loyihalari:**\nBarcha anime va seriallar t.me/doktor_dubber kanalida yuklangan!", parse_mode="Markdown")
+    # Menyu tugmalari
+    if text == "📅 Dars jadvali":
+        bot.send_message(chat_id, "🩺 **Davolash ishi (DI-2026-25) guruh jadvali:**\n\n• Gistologiya\n• Tibbiy kimyo\n• Odam anatomiyasi", parse_mode="Markdown")
         return
-    elif text == "📞 Aloqa / Buyurtma":
-        bot.send_message(chat_id, "📝 Buyurtma va hamkorlik uchun: @doktor_dubber ga murojaat qiling.")
+    elif text == "📚 Tibbiy fanlar":
+        bot.send_message(chat_id, "🔬 Asosiy fanlar: Anatomiya, Fiziologiya, Gistologiya, Mikrobiologiya va Tibbiy kimyo.", parse_mode="Markdown")
         return
-    elif text == "📝 Ssenariy / Matn tuzish":
-        bot.send_message(chat_id, "🎙 Ssenariy yoki matn mavzusini yozib yuboring. Birgalikda muhokama qilamiz!")
+    elif text == "📞 Aloqa / Yordam":
+        bot.send_message(chat_id, "👨‍⚕️ Savollar bo'yicha guruh sardoriga yoki adminstratorga murojaat qiling.")
         return
 
+    # O'rganish mantiqi (O'rgan: mavzu - ma'lumot)
     if low_text.startswith("o'rgan:") or low_text.startswith("oʻrgan:") or low_text.startswith("organ:"):
         try:
             content = text.split(":", 1)[1]
@@ -77,14 +119,15 @@ def handle_text_logic(message):
                 save_to_db(key, value)
                 bot.send_message(
                     chat_id,
-                    f"🧠 **Rahmat! Yangi bilim bazaga qo'shildi va yodlab qolindi:**\n\n📌 *Mavzu:* {key}\n📖 *Ma'lumot:* {value}",
+                    f"🧠 **Rahmat! Yangi tibbiy bilim bazaga qo'shildi:**\n\n📌 *Mavzu:* {key}\n📖 *Ma'lumot:* {value}",
                     parse_mode="Markdown"
                 )
                 return
         except Exception:
-            bot.send_message(chat_id, "⚠️ Xatolik! O'rgatish formati noto'g'ri. Bunday yozing:\n`O'rgan: mavzu - ma'lumot`", parse_mode="Markdown")
+            bot.send_message(chat_id, "⚠️ Xatolik! O'rgatish formati: `O'rgan: mavzu - ma'lumot`", parse_mode="Markdown")
             return
 
+    # Bazadan qidirish
     db = load_db()
     found_answer = None
 
@@ -94,13 +137,17 @@ def handle_text_logic(message):
             break
 
     if found_answer:
-        bot.send_message(chat_id, found_answer, parse_mode="Markdown")
+        # Agar javob juda uzun bo'lsa (fayldan olingan bo'lsa), qisqartirib yoki to'liq yuboramiz
+        if len(found_answer) > 3500:
+            bot.send_message(chat_id, found_answer[:3500] + "\n\n...(davomi bor)...", parse_mode="Markdown")
+        else:
+            bot.send_message(chat_id, found_answer, parse_mode="Markdown")
     else:
         bot.send_message(
             chat_id,
             "🤖 Men bu haqida hali hech narsa bilmayman.\n\n"
-            "Menga o'rgatish uchun quyidagicha yozing:\n"
-            "`O'rgan: " + text + " - [bu yerga ma'lumotni yozing]`",
+            "Menga o'rgatish uchun matn yuboring yoki quyidagicha yozing:\n"
+            "`O'rgan: " + text + " - [ma'lumot]`",
             parse_mode="Markdown",
             reply_markup=main_menu_keyboard()
         )
