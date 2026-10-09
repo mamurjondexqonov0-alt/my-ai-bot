@@ -5,9 +5,18 @@ import telebot
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
 TOKEN = "7953931637:AAFI0y0dIrt-eXFv0lI-j4Hl_3s_3s"
+WEBHOOK_URL = f"https://my-ai-bot-5x8z.onrender.com/{TOKEN}"
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
+
+# Server ishga tushishi bilan webhook'ni avtomatik ulaymiz
+try:
+    bot.remove_webhook()
+    bot.set_webhook(url=WEBHOOK_URL)
+    print("Webhook muvaffaqiyatli o'rnatildi!")
+except Exception as e:
+    print(f"Webhook o'rnatishda xato: {e}")
 
 def load_db():
     try:
@@ -48,7 +57,6 @@ def handle_text_logic(message):
     chat_id = message.chat.id
     low_text = text.lower()
 
-    # Menyu tugmalari
     if text == "🎬 Dublyaj loyihalari":
         bot.send_message(chat_id, "📂 **Doktor Dubber Loyihalari:**\nBarcha anime va seriallar t.me/doktor_dubber kanalida yuklangan!", parse_mode="Markdown")
         return
@@ -59,7 +67,6 @@ def handle_text_logic(message):
         bot.send_message(chat_id, "🎙 Ssenariy yoki matn mavzusini yozib yuboring. Birgalikda muhokama qilamiz!")
         return
 
-    # 1. O'rganish mantiqi (O'rgan: mavzu - ma'lumot)
     if low_text.startswith("o'rgan:") or low_text.startswith("oʻrgan:") or low_text.startswith("organ:"):
         try:
             content = text.split(":", 1)[1]
@@ -67,11 +74,11 @@ def handle_text_logic(message):
                 parts = content.split("-", 1)
                 key = parts[0].strip()
                 value = parts[1].strip()
-                
+
                 save_to_db(key, value)
                 bot.send_message(
-                    chat_id, 
-                    f"🧠 **Rahmat! Yangi bilim bazaga qo'shildi va yodlab qolindi:**\n\n📌 *Mavzu:* {key}\n📖 *Ma'lumot:* {value}", 
+                    chat_id,
+                    f"🧠 **Rahmat! Yangi bilim bazaga qo'shildi va yodlab qolindi:**\n\n📌 *Mavzu:* {key}\n📖 *Ma'lumot:* {value}",
                     parse_mode="Markdown"
                 )
                 return
@@ -79,7 +86,6 @@ def handle_text_logic(message):
             bot.send_message(chat_id, "⚠️ Xatolik! O'rgatish formati noto'g'ri. Bunday yozing:\n`O'rgan: mavzu - ma'lumot`", parse_mode="Markdown")
             return
 
-    # 2. Bazadan qidirish
     db = load_db()
     found_answer = None
 
@@ -109,9 +115,8 @@ def getMessage():
 
 @app.route("/")
 def webhook():
-    bot.remove_webhook()
-    bot.set_webhook(url='https://my-ai-bot-5x8z.onrender.com/' + TOKEN)
     return "Bot status: Active & Self-Learning Ready!", 200
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
