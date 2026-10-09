@@ -4,13 +4,12 @@ from flask import Flask, request
 import telebot
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
-TOKEN = "7953931637:AAFI0y0dIrt-eXFv0lI-j4Hl_3s_3s"
+TOKEN = "8961394155:AAEyso--Kr7_OiSomtz7FXDBTwdafx1miQo"
 WEBHOOK_URL = f"https://my-ai-bot-5x8z.onrender.com/{TOKEN}"
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# Server ishga tushishi bilan webhook'ni avtomatik ulaymiz
 try:
     bot.remove_webhook()
     bot.set_webhook(url=WEBHOOK_URL)
