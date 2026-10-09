@@ -32,6 +32,28 @@ def save_to_db(key, value):
     with open('database.json', 'w', encoding='utf-8') as f:
         json.dump(db, f, ensure_ascii=False, indent=4)
 
+def parse_and_save_bulk(text_content):
+    """Matn ichidan bir nechta 'O'rgan: mavzu - ma'lumot' qismlarini topib, alohida-alohida saqlaydi"""
+    lines = text_content.split('\n')
+    saved_count = 0
+    
+    for line in lines:
+        line_clean = line.strip()
+        low_line = line_clean.lower()
+        if low_line.startswith("o'rgan:") or low_line.startswith("oʻrgan:") or low_line.startswith("organ:"):
+            try:
+                content = line_clean.split(":", 1)[1]
+                if "-" in content:
+                    parts = content.split("-", 1)
+                    key = parts[0].strip()
+                    value = parts[1].strip()
+                    if key and value:
+                        save_to_db(key, value)
+                        saved_count += 1
+            except Exception:
+                continue
+    return saved_count
+
 def main_menu_keyboard():
     markup = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     markup.add(
@@ -47,8 +69,8 @@ def send_welcome(message):
     bot.send_message(
         chat_id,
         f"Salom, {message.from_user.first_name}! 🩺 **Davolash ishi yordamchisi** botiga xush kelibsiz!\n\n"
-        f"Men dars jadvalingizni ko'rsataman va istalgan matn yoki faylni (`.txt`, `.pdf`) yuborsangiz, o'rganib yodlab qolaman.\n\n"
-        f"👉 O'rgatish uchun: `O'rgan: mavzu - ma'lumot` deb yozing yoki fayl yuboring.",
+        f"Men bir nechta ma'lumotni ketma-ket (har birini yangi qatordan `O'rgan: mavzu - ma'lumot` qilib) yuborsangiz, ularning **har birini alohida-alohida** ajratib bazaga yodlab olaman.\n\n"
+        f"Shuningdek, `.txt` fayl yuborishingiz ham mumkin.",
         parse_mode="Markdown",
         reply_markup=main_menu_keyboard()
     )
@@ -57,7 +79,6 @@ def send_welcome(message):
 def handle_docs(message):
     chat_id = message.chat.id
     try:
-        # Fayl haqida ma'lumot olamiz
         file_info = bot.get_file(message.document.file_id)
         downloaded_file = bot.download_file(file_info.file_path)
         
@@ -65,14 +86,11 @@ def handle_docs(message):
         extracted_text = ""
 
         if file_name.endswith('.txt'):
-            # TXT faylni o'qish
             try:
                 extracted_text = downloaded_file.decode('utf-8')
             except UnicodeDecodeError:
                 extracted_text = downloaded_file.decode('cp1251', errors='ignore')
-                
         elif file_name.endswith('.pdf'):
-            # PDF faylni o'qish
             pdf_stream = io.BytesIO(downloaded_file)
             reader = pypdf.PdfReader(pdf_stream)
             for page in reader.pages:
@@ -84,13 +102,23 @@ def handle_docs(message):
             return
 
         if extracted_text.strip():
-            key = file_name.rsplit('.', 1)[0]
-            save_to_db(key, extracted_text.strip())
-            bot.send_message(
-                chat_id,
-                f"📂 **Fayl muvaffaqiyatli o'qildi va bazaga yodlatildi!**\n\n📌 *Mavzu (Fayl nomi):* {key}\n📖 *Matn hajmi:* {len(extracted_text)} ta belgi",
-                parse_mode="Markdown"
-            )
+            # Fayl ichidagi barcha O'rgan qismlarini alohida-alohida ajratib saqlaymiz
+            count = parse_and_save_bulk(extracted_text)
+            if count > 0:
+                bot.send_message(
+                    chat_id,
+                    f"📂 **Fayldan ma'lumotlar muvaffaqiyatli ajratib olindi!**\n\n✅ Jami **{count} ta** mavzu alohida-alohida bazaga yodlatildi.",
+                    parse_mode="Markdown"
+                )
+            else:
+                # Agar faylda O'rgan formati bo'lmasa, fayl nomini kalit qilib butun matnni saqlaymiz
+                key = file_name.rsplit('.', 1)[0]
+                save_to_db(key, extracted_text.strip())
+                bot.send_message(
+                    chat_id,
+                    f"📂 **Fayl butunicha saqlandi!**\n\n📌 *Mavzu:* {key}\n📖 *Hajmi:* {len(extracted_text)} ta belgi",
+                    parse_mode="Markdown"
+                )
         else:
             bot.send_message(chat_id, "⚠️ Fayl ichidan matn topilmadi yoki u bo'sh.")
     except Exception as e:
@@ -112,25 +140,18 @@ def handle_text_logic(message):
         bot.send_message(chat_id, "👨‍⚕️ Savollar bo'yicha guruh sardoriga yoki adminstratorga murojaat qiling.")
         return
 
-    if low_text.startswith("o'rgan:") or low_text.startswith("oʻrgan:") or low_text.startswith("organ:"):
-        try:
-            content = text.split(":", 1)[1]
-            if "-" in content:
-                parts = content.split("-", 1)
-                key = parts[0].strip()
-                value = parts[1].strip()
-
-                save_to_db(key, value)
-                bot.send_message(
-                    chat_id,
-                    f"🧠 **Rahmat! Yangi tibbiy bilim bazaga qo'shildi:**\n\n📌 *Mavzu:* {key}\n📖 *Ma'lumot:* {value}",
-                    parse_mode="Markdown"
-                )
-                return
-        except Exception:
-            bot.send_message(chat_id, "⚠️ Xatolik! O'rgatish formati: `O'rgan: mavzu - ma'lumot`", parse_mode="Markdown")
+    # Agar xabarda bir nechta "O'rgan:" bo'lsa, hammasini bittalab ajratib olamiz
+    if "o'rgan:" in low_text or "oʻrgan:" in low_text or "organ:" in low_text:
+        count = parse_and_save_bulk(text)
+        if count > 0:
+            bot.send_message(
+                chat_id,
+                f"🧠 **Ajoyib! Jami {count} ta yangi mavzu alohida-alohida ajratilib, bazaga yodlatildi.**",
+                parse_mode="Markdown"
+            )
             return
 
+    # Bazadan qidirish
     db = load_db()
     found_answer = None
 
@@ -148,8 +169,8 @@ def handle_text_logic(message):
         bot.send_message(
             chat_id,
             "🤖 Men bu haqida hali hech narsa bilmayman.\n\n"
-            "Menga o'rgatish uchun matn yuboring yoki quyidagicha yozing:\n"
-            "`O'rgan: " + text + " - [ma'lumot]`",
+            "Menga o'rgatish uchun quyidagicha yozing:\n"
+            "`O'rgan: mavzu - ma'lumot`",
             parse_mode="Markdown",
             reply_markup=main_menu_keyboard()
         )
